@@ -1,0 +1,15 @@
+# 大模型图像分析服务配置
+# 复制此文件为 application.properties 并填入你的配置
+
+# API 类型: qwen (通义千问) 或 openai
+llm.api.type=qwen
+
+# 通义千问配置
+# 在 https://dashscope.console.aliyun.com/ 获取 API Key
+llm.qwen.api-key=${DASHSCOPE_API_KEY:}
+llm.qwen.model=qwen-vl-plus
+
+# OpenAI 配置（如果使用）
+# 在 https://platform.openai.com/api-keys 获取 API Key
+llm.openai.api-key=${OPENAI_API_KEY:}
+llm.openai.model=gpt-4o

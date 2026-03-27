@@ -1,5 +1,6 @@
 package com.yys.agent.service;
 
+import com.yys.agent.config.AppConfig;
 import com.yys.agent.nodes.Rectangle;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -19,7 +20,7 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * 基于大模型的图像分析服务
- * 使用 OkHttp 直接调用 OpenAI Vision API (GPT-4o)
+ * 支持通义千问（Qwen）和 OpenAI 视觉模型
  */
 public class LlmImageAnalysisService implements ImageAnalysisService {
 
@@ -27,21 +28,42 @@ public class LlmImageAnalysisService implements ImageAnalysisService {
     private final String modelName;
     private final OkHttpClient httpClient;
     private final ObjectMapper objectMapper;
+    private final String apiBaseUrl;
 
     /**
-     * 使用默认配置创建服务
-     * 需要设置 OPENAI_API_KEY 环境变量
+     * 从配置文件读取配置创建服务
      */
     public LlmImageAnalysisService() {
-        this(System.getenv("OPENAI_API_KEY"), "gpt-4o");
+        AppConfig config = AppConfig.getInstance();
+        String apiType = config.getLlmApiType();
+
+        this.httpClient = new OkHttpClient.Builder()
+                .connectTimeout(60, TimeUnit.SECONDS)
+                .readTimeout(120, TimeUnit.SECONDS)
+                .build();
+        this.objectMapper = new ObjectMapper();
+
+        if ("openai".equalsIgnoreCase(apiType)) {
+            this.apiKey = config.getOpenaiApiKey();
+            this.modelName = config.getOpenaiModel();
+            this.apiBaseUrl = "https://api.openai.com/v1/chat/completions";
+        } else {
+            // 默认使用千问
+            this.apiKey = config.getQwenApiKey();
+            this.modelName = config.getQwenModel();
+            this.apiBaseUrl = "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions";
+        }
+
+        System.out.println("[LlmImageAnalysisService] 初始化: API=" + apiType + ", Model=" + this.modelName);
     }
 
     /**
-     * 指定模型创建服务
+     * 手动指定配置创建服务
      * @param apiKey API Key
-     * @param modelName 模型名称（如 gpt-4o, gpt-4o-2024-05-13）
+     * @param modelName 模型名称
+     * @param isOpenAI true 表示使用 OpenAI，false 表示使用千问
      */
-    public LlmImageAnalysisService(String apiKey, String modelName) {
+    public LlmImageAnalysisService(String apiKey, String modelName, boolean isOpenAI) {
         this.apiKey = apiKey;
         this.modelName = modelName;
         this.httpClient = new OkHttpClient.Builder()
@@ -49,6 +71,18 @@ public class LlmImageAnalysisService implements ImageAnalysisService {
                 .readTimeout(120, TimeUnit.SECONDS)
                 .build();
         this.objectMapper = new ObjectMapper();
+        this.apiBaseUrl = isOpenAI
+                ? "https://api.openai.com/v1/chat/completions"
+                : "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions";
+    }
+
+    /**
+     * 指定模型创建服务（默认使用千问）
+     * @param apiKey API Key
+     * @param modelName 模型名称（如 qwen-vl-plus, qwen-vl-max）
+     */
+    public LlmImageAnalysisService(String apiKey, String modelName) {
+        this(apiKey, modelName, false);
     }
 
     @Override
@@ -102,11 +136,13 @@ public class LlmImageAnalysisService implements ImageAnalysisService {
     }
 
     /**
-     * 调用 OpenAI Vision API
+     * 调用视觉模型 API
      */
     private String callVisionApi(String prompt, String imageBase64) throws IOException {
-        // 构建请求体
-        String requestBodyJson = String.format("""
+        String requestBodyJson;
+
+        // 千问和 OpenAI 格式相同，都支持多模态
+        requestBodyJson = String.format("""
             {
                 "model": "%s",
                 "messages": [
@@ -125,7 +161,7 @@ public class LlmImageAnalysisService implements ImageAnalysisService {
                 ],
                 "max_tokens": 1000
             }
-            """, modelName, prompt.replace("\"", "\\\""), imageBase64);
+            """, modelName, prompt.replace("\"", "\\\"").replace("\n", "\\n"), imageBase64);
 
         RequestBody requestBody = RequestBody.create(
                 requestBodyJson,
@@ -133,7 +169,7 @@ public class LlmImageAnalysisService implements ImageAnalysisService {
         );
 
         Request request = new Request.Builder()
-                .url("https://api.openai.com/v1/chat/completions")
+                .url(apiBaseUrl)
                 .addHeader("Authorization", "Bearer " + apiKey)
                 .addHeader("Content-Type", "application/json")
                 .post(requestBody)
@@ -141,7 +177,7 @@ public class LlmImageAnalysisService implements ImageAnalysisService {
 
         try (Response response = httpClient.newCall(request).execute()) {
             if (!response.isSuccessful()) {
-                throw new IOException("API call failed: " + response);
+                throw new IOException("API call failed: " + response + ", body: " + response.body().string());
             }
 
             String responseBody = response.body().string();
