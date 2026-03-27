@@ -1,0 +1,33 @@
+# 阴阳师探索工作流 - 简单示例
+
+name: "阴阳师探索"
+description: "自动探索流程"
+version: "1.0"
+
+global:
+  screenshot_dir: "./screenshots"
+
+start_node: "screenshot"
+
+nodes:
+  - id: "screenshot"
+    type: "SCREENSHOT"
+    name: "截图"
+    params:
+      save_dir: "./screenshots"
+      save_to_file: true
+    next: "analyze"
+
+  - id: "analyze"
+    type: "IMAGE_ANALYSIS"
+    name: "分析图像"
+    params:
+      target: "探索入口"
+      confidence: 0.7
+    next: "click"
+
+  - id: "click"
+    type: "MOUSE_CLICK"
+    name: "点击"
+    params:
+      click_count: 1

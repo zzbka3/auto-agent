@@ -1,0 +1,247 @@
+# 阴阳师自动探索工作流配置
+# 这是一个示例配置文件
+
+name: "阴阳师探索自动刷图"
+description: "自动探索刷图，收集式神经验和金币"
+version: "1.0.0"
+
+# 全局参数
+global:
+  # 截图保存目录
+  screenshot_dir: "./screenshots"
+  # 截图间隔(ms)
+  screenshot_interval: 500
+  # 默认超时时间(ms)
+  default_timeout: 30000
+  # 是否保存截图
+  save_screenshots: true
+  # 日志级别
+  log_level: "INFO"
+
+# 起始节点
+start_node: "screenshot"
+
+# 节点配置
+nodes:
+  # ==================== 截图节点 ====================
+  - id: "screenshot"
+    type: "SCREENSHOT"
+    name: "截图"
+    description: "截取当前屏幕"
+    params:
+      save_dir: "./screenshots"
+      save_to_file: true
+      filename_pattern: "screenshot_{timestamp}"
+    outputs:
+      screenshot_path: "screenshot_path"  # 输出：截图路径
+
+  # ==================== 图像分析节点 ====================
+  - id: "analyze_explore_entry"
+    type: "IMAGE_ANALYSIS"
+    name: "分析探索入口"
+    description: "在截图中识别探索入口"
+    params:
+      target: "探索入口"
+      confidence: 0.7
+      # 分析模式：template_match, ai_vision, ocr
+      analysis_mode: "ai_vision"
+    inputs:
+      - source: "screenshot:screenshot_path"  # 引用上一个节点的输出
+    outputs:
+      region: "target_region"
+      confidence: "confidence"
+
+  # ==================== 点击节点 ====================
+  - id: "click_explore_entry"
+    type: "MOUSE_CLICK"
+    name: "点击探索入口"
+    description: "点击识别到的探索入口区域"
+    params:
+      click_type: "LEFT_CLICK"
+      click_count: 1
+      click_interval: 100
+      # 坐标来源：region_center(使用识别区域中心), fixed(固定坐标)
+      position_mode: "region_center"
+    inputs:
+      - source: "analyze_explore_entry:target_region"
+
+  # ==================== 等待节点 ====================
+  - id: "wait_enter_explore"
+    type: "WAIT"
+    name: "等待进入探索"
+    description: "等待进入探索地图"
+    params:
+      duration: 2000
+      # 等待条件：none(无), image_match(图像匹配), text_appear(文字出现)
+      wait_condition: "none"
+
+  # ==================== 再截图 ====================
+  - id: "screenshot_explore_map"
+    type: "SCREENSHOT"
+    name: "截取探索地图"
+    description: "截取探索地图界面"
+    params:
+      save_dir: "./screenshots"
+      save_to_file: true
+    outputs:
+      screenshot_path: "screenshot_path"
+
+  # ==================== 分析目标章节 ====================
+  - id: "analyze_chapter"
+    type: "IMAGE_ANALYSIS"
+    name: "分析目标章节"
+    description: "识别要点击的章节"
+    params:
+      target: "探索章节"
+      confidence: 0.7
+      analysis_mode: "ai_vision"
+      # 预设的章节列表（用于匹配）
+      target_list:
+        - "探索第一章"
+        - "探索第二章"
+        - "探索第三章"
+    inputs:
+      - source: "screenshot_explore_map:screenshot_path"
+    outputs:
+      region: "target_region"
+
+  # ==================== 点击章节 ====================
+  - id: "click_chapter"
+    type: "MOUSE_CLICK"
+    name: "点击章节"
+    description: "点击目标章节"
+    params:
+      click_type: "LEFT_CLICK"
+      position_mode: "region_center"
+    inputs:
+      - source: "analyze_chapter:target_region"
+
+  # ==================== 等待进入战斗 ====================
+  - id: "wait_enter_battle"
+    type: "WAIT"
+    name: "等待进入战斗"
+    params:
+      duration: 3000
+
+  # ==================== 战斗分析 ====================
+  - id: "analyze_battle"
+    type: "IMAGE_ANALYSIS"
+    name: "分析战斗界面"
+    description: "分析当前战斗状态，识别敌人位置"
+    params:
+      target: "敌人"
+      confidence: 0.8
+      analysis_mode: "ai_vision"
+    outputs:
+      enemy_regions: "enemy_regions"
+
+  # ==================== 时间暂停 ====================
+  - id: "time_pause"
+    type: "TIME_PAUSE"
+    name: "暂停时间"
+    description: "暂停游戏时间进行思考"
+    params:
+      # 暂停时长(ms)，0表示手动恢复
+      duration: 0
+
+  # ==================== 点击敌人 ====================
+  - id: "click_enemy"
+    type: "MOUSE_CLICK"
+    name: "点击敌人"
+    description: "点击敌人进行攻击"
+    params:
+      click_type: "LEFT_CLICK"
+      click_count: 3
+      click_interval: 500
+      position_mode: "region_center"
+    inputs:
+      - source: "analyze_battle:enemy_regions"
+      - source: "0:fixed_center"  # 也可以使用固定坐标
+
+  # ==================== 时间恢复 ====================
+  - id: "time_resume"
+    type: "TIME_RESUME"
+    name: "恢复时间"
+    description: "恢复游戏时间"
+
+  # ==================== 等待战斗操作 ====================
+  - id: "wait_battle_action"
+    type: "WAIT"
+    name: "等待战斗操作"
+    params:
+      duration: 5000
+
+  # ==================== 检查战斗结束 ====================
+  - id: "check_battle_end"
+    type: "CHECK_BATTLE_END"
+    name: "检查战斗是否结束"
+    params:
+      timeout: 60000
+      # 战斗结束的特征
+      end_markers:
+        - "胜利"
+        - "失败"
+        - "结算"
+        - "获得"
+    outputs:
+      result: "battle_result"
+
+  # ==================== 条件分支 ====================
+  - id: "condition_battle_result"
+    type: "CONDITION"
+    name: "判断战斗结果"
+    params:
+      # 判断条件表达式
+      condition: "${check_battle_end:battle_result} == '胜利'"
+    branches:
+      # 条件满足时执行
+      true: "collect_reward"
+      # 条件不满足时执行（重新战斗）
+      false: "wait_battle_action"
+
+  # ==================== 收集奖励 ====================
+  - id: "collect_reward"
+    type: "COLLECT_REWARD"
+    name: "收集奖励"
+    description: "收集战斗奖励"
+    params:
+      # 奖励类型
+      reward_type: "all"
+      # 多次点击收集（如有多页）
+      max_clicks: 5
+
+  # ==================== 检查关卡 ====================
+  - id: "check_stage_clear"
+    type: "CHECK_STAGE_CLEAR"
+    name: "检查关卡是否通过"
+    params:
+      timeout: 30000
+      clear_markers:
+        - "通关"
+        - "探索完成"
+    outputs:
+      cleared: "stage_cleared"
+
+  # ==================== 循环节点 ====================
+  - id: "battle_loop"
+    type: "LOOP"
+    name: "战斗循环"
+    params:
+      # 最大循环次数
+      max_iterations: 10
+      # 或者使用条件循环
+      # loop_condition: "${check_stage_clear:stage_cleared} == true"
+    # 循环体中的节点
+    loop_nodes:
+      - "screenshot_explore_map"
+      - "analyze_chapter"
+      - "click_chapter"
+      - "wait_enter_battle"
+      - "analyze_battle"
+      - "time_pause"
+      - "click_enemy"
+      - "time_resume"
+      - "wait_battle_action"
+      - "check_battle_end"
+      - "collect_reward"
+      - "check_stage_clear"
