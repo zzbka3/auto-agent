@@ -105,15 +105,20 @@ public class WorkflowEngine {
     
     private void executeNode(String nodeId) {
         if (nodeId == null) return;
-        
+
         AgentNode node = nodeRegistry.get(nodeId);
         if (node == null) {
             throw new IllegalArgumentException("Node not found: " + nodeId);
         }
-        
+
         NodeConfig nodeConfig = config.getNode(nodeId);
         NodeExecutionContext execContext = new NodeExecutionContext(workflowContext, nodeId);
-        
+
+        // 设置执行上下文到节点（用于参数引用解析）
+        if (node instanceof com.yys.agent.AbstractAgentNode) {
+            ((com.yys.agent.AbstractAgentNode) node).setExecContext(workflowContext);
+        }
+
         // 执行节点
         NodeResult result = node.execute(execContext);
         

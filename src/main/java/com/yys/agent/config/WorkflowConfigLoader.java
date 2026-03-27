@@ -89,10 +89,14 @@ public class WorkflowConfigLoader {
         nodeConfig.setDescription((String) nodeMap.get("description"));
         nodeConfig.setNextNodeId((String) nodeMap.get("next"));
         
-        // 参数
+        // 参数（支持对象格式：{value: xxx} 或 {refer: ${xxx}}）
         Map<String, Object> paramsMap = (Map<String, Object>) nodeMap.get("params");
         if (paramsMap != null) {
-            nodeConfig.setParameters(paramsMap);
+            Map<String, ParamValue> paramValues = new HashMap<>();
+            for (Map.Entry<String, Object> entry : paramsMap.entrySet()) {
+                paramValues.put(entry.getKey(), ParamValue.fromMap(entry.getValue()));
+            }
+            nodeConfig.setParamValues(paramValues);
         }
         
         // 输出
@@ -133,8 +137,8 @@ public class WorkflowConfigLoader {
             for (Object obj : loopNodesList) {
                 loopNodes.add(String.valueOf(obj));
             }
-            // 可以存储在参数中
-            nodeConfig.getParameters().put("loop_nodes", loopNodes);
+            // 存储为 ParamValue
+            nodeConfig.getParamValues().put("loop_nodes", new ParamValue(loopNodes));
         }
         
         return nodeConfig;

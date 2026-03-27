@@ -134,13 +134,20 @@ public class Demo {
     /**
      * 创建节点配置辅助方法
      */
-    static NodeConfig createNodeConfig(String id, String type, String name, 
+    static NodeConfig createNodeConfig(String id, String type, String name,
                                        Map<String, Object> params, String next) {
         NodeConfig config = new NodeConfig();
         config.setNodeId(id);
         config.setNodeType(type);
         config.setName(name);
-        config.setParameters(new HashMap<>(params));
+
+        // 将参数转换为 ParamValue 格式
+        Map<String, ParamValue> paramValues = new HashMap<>();
+        for (Map.Entry<String, Object> entry : params.entrySet()) {
+            paramValues.put(entry.getKey(), ParamValue.fromMap(entry.getValue()));
+        }
+        config.setParamValues(paramValues);
+
         config.setNextNodeId(next);
         return config;
     }
