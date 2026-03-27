@@ -10,20 +10,39 @@ public class LlmImageAnalysisServiceTest {
     public static void main(String[] args) {
         System.out.println("=== 大模型图像分析服务测试 ===\n");
 
-        // 测试1: 使用配置文件初始化
-        System.out.println("【测试1】从配置文件初始化服务");
-        try {
-            ImageAnalysisService service = new LlmImageAnalysisService();
-            AnalysisResult aiResult = service.analyzeImage("./screenshots/screenshot_20260327_173841_567.png", "查询页面上有没有什么按钮");
-            System.out.println("结果: " + aiResult);
+        // 测试1: 简单文本对话测试（不依赖图像）
+        System.out.println("【测试1】简单文本对话测试");
+        testSimpleChat();
 
-            System.out.println("服务初始化成功\n");
-        } catch (Exception e) {
-            System.err.println("服务初始化失败: " + e.getMessage());
-            return;
-        }
+        // 测试2: 分析图像
+        System.out.println("\n【测试2】图像分析测试");
+        testAnalyzeImage();
 
         System.out.println("\n=== 测试完成 ===");
+    }
+
+    /**
+     * 简单测试 API 调用（不依赖图像）
+     */
+    static void testSimpleChat() {
+        try {
+            LlmImageAnalysisService service = new LlmImageAnalysisService();
+            System.out.println("发送测试请求...");
+
+            // 直接调用内部方法测试
+            String response = service.testApiCall("你好，请回复 'API 测试成功'");
+
+            System.out.println("收到响应: " + response);
+
+            if (response != null && response.length() > 0) {
+                System.out.println("API 调用成功!");
+            } else {
+                System.out.println("API 返回为空");
+            }
+        } catch (Exception e) {
+            System.err.println("API 调用失败: " + e.getMessage());
+            e.printStackTrace();
+        }
     }
 
     /**

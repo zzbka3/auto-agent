@@ -85,6 +85,55 @@ public class LlmImageAnalysisService implements ImageAnalysisService {
         this(apiKey, modelName, false);
     }
 
+    /**
+     * 测试 API 调用（不依赖图像，只测试文本对话）
+     * @param message 发送的消息
+     * @return API 响应
+     */
+    public String testApiCall(String message) {
+        try {
+            String requestBodyJson = String.format("""
+                {
+                    "model": "%s",
+                    "messages": [
+                        {"role": "user", "content": "%s"}
+                    ],
+                    "max_tokens": 500
+                }
+                """, modelName, message.replace("\"", "\\\""));
+
+            RequestBody requestBody = RequestBody.create(
+                    requestBodyJson,
+                    MediaType.parse("application/json; charset=utf-8")
+            );
+
+            Request request = new Request.Builder()
+                    .url(apiBaseUrl)
+                    .addHeader("Authorization", "Bearer " + apiKey)
+                    .addHeader("Content-Type", "application/json")
+                    .post(requestBody)
+                    .build();
+
+            try (Response response = httpClient.newCall(request).execute()) {
+                if (!response.isSuccessful()) {
+                    throw new IOException("API call failed: " + response + ", body: " + response.body().string());
+                }
+
+                String responseBody = response.body().string();
+                JsonNode rootNode = objectMapper.readTree(responseBody);
+                JsonNode choices = rootNode.get("choices");
+
+                if (choices != null && choices.isArray() && choices.size() > 0) {
+                    return choices.get(0).get("message").get("content").asText();
+                }
+
+                return "";
+            }
+        } catch (Exception e) {
+            throw new RuntimeException("API 调用失败: " + e.getMessage(), e);
+        }
+    }
+
     @Override
     public AnalysisResult analyzeImage(String imagePath, String target) {
         try {
