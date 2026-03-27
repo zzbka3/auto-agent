@@ -16,7 +16,7 @@ public class LlmImageAnalysisServiceTest {
 
         // 测试2: 分析图像
         System.out.println("\n【测试2】图像分析测试");
-        testAnalyzeImage();
+//        testAnalyzeImage();
 
         System.out.println("\n=== 测试完成 ===");
     }
@@ -30,7 +30,7 @@ public class LlmImageAnalysisServiceTest {
             System.out.println("发送测试请求...");
 
             // 直接调用内部方法测试
-            String response = service.testApiCall("你好，请回复 'API 测试成功'");
+            String response = service.testApiCall("你好，你是谁");
 
             System.out.println("收到响应: " + response);
 
