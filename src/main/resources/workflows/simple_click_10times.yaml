@@ -1,0 +1,42 @@
+# 最简单的工作流：在固定位置点击10次，每次间隔2秒
+
+name: "简单点击10次"
+description: "在固定位置点击10次，每次间隔2秒"
+version: "1.0"
+
+# 全局参数
+global:
+  # 执行文件夹的基础目录（会在下面创建带时间戳的子目录）
+  screenshot_dir: "./executions"
+
+# 起始节点
+start_node: "click_target"
+
+# 节点配置
+nodes:
+  - id: "click_target"
+    type: "MOUSE_CLICK"
+    name: "点击目标位置"
+    description: "在指定坐标点击10次，间隔2秒"
+    params:
+      # 点击坐标（请修改为您的实际点击位置）
+      x: 1000
+      y: 500
+      # 点击类型
+      click_type: "LEFT_CLICK"
+      # 点击次数
+      click_count: 10
+      # 每次点击间隔（2000毫秒 = 2秒）
+      click_interval: 2000
+    next: "end"
+
+  - id: "end"
+    type: "END"
+    name: "结束"
+    description: "工作流结束，清理临时文件，保留执行记录"
+    params:
+      message: "点击10次完成！"
+      # 是否清理临时文件（截图等）
+      cleanup_temp_files: true
+      # 是否保存执行报告
+      save_execution_report: true

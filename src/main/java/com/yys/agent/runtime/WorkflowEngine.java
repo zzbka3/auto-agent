@@ -57,7 +57,7 @@ public class WorkflowEngine {
     private AgentNode createNode(NodeConfig nodeConfig) {
         String nodeType = nodeConfig.getNodeType();
         AgentNode node = null;
-        
+
         switch (nodeType) {
             case "SCREENSHOT":
                 node = new ScreenshotNode();
@@ -68,15 +68,18 @@ public class WorkflowEngine {
             case "MOUSE_CLICK":
                 node = new MouseClickNode();
                 break;
+            case "END":
+                node = new com.yys.agent.nodes.EndNode();
+                break;
             default:
                 System.err.println("Unknown node type: " + nodeType);
                 return null;
         }
-        
+
         if (node != null) {
             node.initFromConfig(nodeConfig);
         }
-        
+
         return node;
     }
     
@@ -87,19 +90,41 @@ public class WorkflowEngine {
         if (state != State.LOADED && state != State.IDLE) {
             throw new IllegalStateException("Cannot execute in current state: " + state);
         }
-        
+
         state = State.RUNNING;
         workflowContext.setState(WorkFlowContext.WorkflowState.RUNNING);
-        
+
         try {
+            // 初始化执行文件夹
+            String baseDir = workflowContext.getGlobalInput("screenshot_dir", String.class, "./executions");
+            String workflowName = config.getName();
+            workflowContext.initExecutionDir(baseDir, workflowName);
+
+            // 记录开始时间
+            workflowContext.setTemp("workflow_start_time", System.currentTimeMillis());
+
+            workflowContext.log("开始执行工作流: " + config.getName());
+            workflowContext.log("工作流描述: " + config.getDescription());
+
+            // 保存执行记录到保留列表
+            workflowContext.registerKeepFile(workflowContext.getLogFile().getAbsolutePath());
+
             executeNode(startNodeId);
+
             workflowContext.setState(WorkFlowContext.WorkflowState.COMPLETED);
             state = State.COMPLETED;
+
+            workflowContext.log("工作流执行完成");
+
         } catch (Exception e) {
             workflowContext.setState(WorkFlowContext.WorkflowState.ERROR);
             workflowContext.setErrorMessage(e.getMessage());
+            workflowContext.log("工作流执行失败: " + e.getMessage());
             state = State.ERROR;
             throw e;
+        } finally {
+            // 关闭日志
+            workflowContext.closeLog();
         }
     }
     
@@ -119,17 +144,29 @@ public class WorkflowEngine {
             ((com.yys.agent.AbstractAgentNode) node).setExecContext(workflowContext);
         }
 
+        // 记录入参（执行前）
+        Map<String, Object> inputs = null;
+        if (node instanceof com.yys.agent.AbstractAgentNode) {
+            com.yys.agent.AbstractAgentNode abstractNode = (com.yys.agent.AbstractAgentNode) node;
+            inputs = new java.util.HashMap<>(abstractNode.getParameters());
+        }
+
         // 执行节点
         NodeResult result = node.execute(execContext);
-        
+
+        // 节点输出
+        Map<String, Object> outputs = node.getOutputs();
+
         // 保存节点输出
-        workflowContext.putNodeOutputs(nodeId, node.getOutputs());
-        workflowContext.addExecutionRecord(nodeId, result.isSuccess(), result.getOutput());
-        
+        workflowContext.putNodeOutputs(nodeId, outputs);
+
+        // 记录执行记录（包含入参和出参）
+        workflowContext.addExecutionRecord(nodeId, inputs, outputs, result.isSuccess(), result.getOutput());
+
         if (!result.isSuccess()) {
             throw new RuntimeException("Node " + nodeId + " failed: " + result.getOutput());
         }
-        
+
         // 决定下一个节点
         String nextNodeId = determineNextNode(nodeConfig, execContext);
         if (nextNodeId != null) {

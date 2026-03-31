@@ -1,0 +1,47 @@
+# 测试工作流：演示入参出参记录
+
+name: "入参出参测试"
+description: "测试每个节点的入参和出参记录功能"
+version: "1.0"
+
+# 全局参数
+global:
+  screenshot_dir: "./executions"
+
+# 起始节点
+start_node: "click_first"
+
+# 节点配置
+nodes:
+  # 节点1：第一次点击
+  - id: "click_first"
+    type: "MOUSE_CLICK"
+    name: "第一次点击"
+    params:
+      x: 500
+      y: 500
+      click_type: "LEFT_CLICK"
+      click_count: 1
+      click_interval: 500
+    next: "click_second"
+
+  # 节点2：第二次点击（使用多次点击）
+  - id: "click_second"
+    type: "MOUSE_CLICK"
+    name: "多次点击"
+    params:
+      x: 800
+      y: 600
+      click_type: "LEFT_CLICK"
+      click_count: 3
+      click_interval: 1000
+    next: "end"
+
+  # 结束节点
+  - id: "end"
+    type: "END"
+    name: "结束"
+    params:
+      message: "测试完成！"
+      cleanup_temp_files: true
+      save_execution_report: true

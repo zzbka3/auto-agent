@@ -190,6 +190,10 @@ public abstract class AbstractAgentNode implements AgentNode {
         return outputs;
     }
 
+    public Map<String, Object> getParameters() {
+        return parameters;
+    }
+
     protected void clearOutputs() {
         outputs.clear();
     }
