@@ -1,0 +1,78 @@
+# 战斗流程工作流示例
+# 场景：自动识别当前页面，然后点击对应的按钮
+
+name: "战斗流程"
+description: "通过图片匹配识别场景，然后执行点击操作"
+version: "1.0"
+
+# 全局参数
+global:
+  screenshot_dir: "./executions"
+  # 场景参考图片目录
+  image_base_dir: "./images"
+
+# 起始节点
+start_node: "screenshot"
+
+# 节点配置
+nodes:
+  # 1. 截图节点
+  - id: "screenshot"
+    type: "SCREENSHOT"
+    name: "截图"
+    description: "截取当前屏幕"
+    params:
+      save_to_file: true
+      format: "png"
+    next: "match_scene"
+
+  # 2. 图片匹配节点 - 识别当前场景
+  - id: "match_scene"
+    type: "IMAGE_MATCH"
+    name: "场景匹配"
+    description: "根据截图匹配当前场景"
+    params:
+      # 默认匹配阈值
+      default_threshold: 0.7
+      # 场景列表
+      scenes:
+        - scene_id: "battle_ready"
+          scene_name: "战斗准备页"
+          reference_image: "${global:image_base_dir}/battle_ready.png"
+          threshold: 0.75
+        - scene_id: "battle_fighting"
+          scene_name: "战斗中"
+          reference_image: "${global:image_base_dir}/battle_fighting.png"
+          threshold: 0.75
+        - scene_id: "battle_result"
+          scene_name: "战斗结果页"
+          reference_image: "${global:image_base_dir}/battle_result.png"
+          threshold: 0.75
+        - scene_id: "main_menu"
+          scene_name: "主菜单"
+          reference_image: "${global:image_base_dir}/main_menu.png"
+          threshold: 0.7
+    next: "click_button"
+
+  # 3. 点击按钮节点 - 根据场景点击不同按钮
+  - id: "click_button"
+    type: "MOUSE_CLICK"
+    name: "点击按钮"
+    description: "根据匹配到的场景点击对应按钮"
+    params:
+      # 这里暂时用固定坐标，实际使用时可以通过场景ID判断
+      # 后续可以扩展为根据场景动态设置坐标
+      x: 800
+      y: 600
+      click_count: 1
+      click_interval: 100
+    next: "end"
+
+  # 4. 结束节点
+  - id: "end"
+    type: "END"
+    name: "结束"
+    description: "工作流结束"
+    params:
+      message: "流程执行完成"
+      cleanup_temp_files: true

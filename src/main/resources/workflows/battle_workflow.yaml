@@ -1,0 +1,89 @@
+# 战斗流程工作流完整示例
+# 包含：截图 -> 图片匹配 -> 选择点击区域 -> 点击
+
+name: "战斗流程完整版"
+description: "通过图片匹配识别场景，智能选择点击区域，然后执行点击"
+version: "1.0"
+
+# 全局参数
+global:
+  screenshot_dir: "./executions"
+  # 场景参考图片目录
+  image_base_dir: "./images"
+  # 点击区域缓存文件
+  cache_file: "./data/click_regions.json"
+
+# 起始节点
+start_node: "screenshot"
+
+# 节点配置
+nodes:
+  # 1. 截图节点
+  - id: "screenshot"
+    type: "SCREENSHOT"
+    name: "截图"
+    description: "截取当前屏幕"
+    params:
+      save_to_file: true
+      format: "png"
+    next: "match_scene"
+
+  # 2. 图片匹配节点 - 识别当前场景
+  - id: "match_scene"
+    type: "IMAGE_MATCH"
+    name: "场景匹配"
+    description: "根据截图匹配当前场景"
+    params:
+      # 默认匹配阈值
+      default_threshold: 0.7
+      # 场景列表
+      scenes:
+        - scene_id: "battle_ready"
+          scene_name: "战斗准备页"
+          reference_image: "${global:image_base_dir}/battle_ready.png"
+          threshold: 0.75
+        - scene_id: "battle_fighting"
+          scene_name: "战斗中"
+          reference_image: "${global:image_base_dir}/battle_fighting.png"
+          threshold: 0.75
+        - scene_id: "battle_result"
+          scene_name: "战斗结果页"
+          reference_image: "${global:image_base_dir}/battle_result.png"
+          threshold: 0.75
+    next: "select_region"
+
+  # 3. 选择点击区域节点 - 智能判断使用缓存还是大模型
+  - id: "select_region"
+    type: "SELECT_CLICK_REGION"
+    name: "选择点击区域"
+    description: "根据场景和意图智能选择点击区域"
+    params:
+      # 缓存文件路径
+      cache_file: "./data/click_regions.json"
+      # 用户意图（这个会保存到缓存中，作为key的一部分）
+      intent: "点击战斗按钮"
+      # 场景ID参数名（从上下文获取）
+      scene_id_param: "matched_scene_id"
+    next: "click_button"
+
+  # 4. 点击按钮节点
+  - id: "click_button"
+    type: "MOUSE_CLICK"
+    name: "点击按钮"
+    description: "点击确定后的区域"
+    params:
+      # 点击坐标从选择点击区域节点获取
+      # 这里不设置x/y，会自动从上下文的target_region获取
+      click_count: 1
+      click_interval: 100
+    next: "end"
+
+  # 5. 结束节点
+  - id: "end"
+    type: "END"
+    name: "结束"
+    description: "工作流结束"
+    params:
+      message: "流程执行完成"
+      cleanup_temp_files: true
+      save_execution_report: true

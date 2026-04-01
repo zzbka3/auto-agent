@@ -65,6 +65,12 @@ public class WorkflowEngine {
             case "IMAGE_ANALYSIS":
                 node = new ImageAnalysisNode();
                 break;
+            case "IMAGE_MATCH":
+                node = new ImageMatchNode();
+                break;
+            case "SELECT_CLICK_REGION":
+                node = new ClickRegionSelectorNode();
+                break;
             case "MOUSE_CLICK":
                 node = new MouseClickNode();
                 break;
